@@ -24,10 +24,7 @@ config = PNConfiguration()
 config.subscribe_key = 'sub-c-52a9ab50-291b-11e5-baaa-0619f8945a4f'
 config.reconnect_policy = PNReconnectionPolicy.LINEAR
 pubnub = PubNubTornado(config)
-
-
 api = pybitflyer.API(api_key=API_KEY, api_secret=API_SECRET)
-
 df_all = pd.DataFrame(index=['datetime'],
                   columns=['id',
                            'side',
@@ -36,10 +33,6 @@ df_all = pd.DataFrame(index=['datetime'],
                            'exec_date',
                            'buy_child_order_acceptance_id',
                            'sell_child_order_acceptance_id'])
-
-
-
-
 
 # entry buy or sell position
 def entry(side, order_size):
@@ -63,7 +56,6 @@ def entry(side, order_size):
         api.cancelallchildorders(product_code= 'FX_BTC_JPY')
         return 'NONE'
 
-
 def close(side, order_size):
     api.cancelallchildorders(product_code= 'FX_BTC_JPY')
     tatedama = api.getpositions(product_code='FX_BTC_JPY')
@@ -76,7 +68,6 @@ def close(side, order_size):
         oposit_side = 'SELL'
     elif side == 'SELL':
         oposit_side = 'BUY'
-
     bf_positions = pd.DataFrame(tatedama)
     if not(bf_positions.empty):
         bf_pos = bf_positions.ix[[0], ['side']].values.flatten()
@@ -118,26 +109,17 @@ def close_or_dont_close(buy_15m_vol,buy_5s_vol,sell_15m_vol,sell_5s_vol,pos):
     print("cd")
     margin = 1
     if pos == "BUY":
-        print("d")
         if buy_15m_vol*margin < sell_15m_vol and buy_5s_vol*margin < sell_5s_vol:
             return "CLOSE"
         else:
             return "DONT_CLOSE"
     elif pos == "SELL":
-        print("e")
         if buy_15m_vol > sell_15m_vol*margin and buy_5s_vol > sell_5s_vol*margin:
             return "CLOSE"
         else:
             return "DONT_CLOSE"
     else:
-        print("f")
         return "DONT_CLOSE"
-
-
-
-
-
-
 
 @gen.coroutine #非同期処理
 def main(channels):
@@ -174,14 +156,12 @@ def main(channels):
     pubnub.add_listener(listener)
     pubnub.subscribe().channels(channels).execute()
 
-
 def task(channel, message):
     #注文量
     global my_order_size
     global buy_or_sell_flag
     global buyVol_sellVol_balance
     global api
-
     for i in message:
         df_new = pd.DataFrame(message)
         df_new['exec_date'] = pd.to_datetime(df_new['exec_date'])
@@ -201,7 +181,6 @@ def task(channel, message):
     df_1hour = df_all.ix[df_all.index >= (date_now - timedelta(seconds=vol_df_1hour_sec))]
     df_15min = df_all.ix[df_all.index >= (date_now - timedelta(seconds=vol_df_15min_sec))]
     df_all = df_all[df_all.index >= (date_now - timedelta(seconds=vol_df_all_sec))]
-
     buy_vol = df_15min[df_15min.apply(lambda x: x['side'], axis=1) == "BUY"]['size'].sum(axis=0)
     sell_vol = df_15min[df_15min.apply(lambda x: x['side'], axis=1) == "SELL"]['size'].sum(axis=0)
     buy_5sec_vol = df_5sec[df_5sec.apply(lambda x: x['side'], axis=1) == "BUY"]['size'].sum(axis=0)
@@ -216,25 +195,17 @@ def task(channel, message):
           "SELL_15m_VOL", format(sell_vol, '.2f'),
           "BUY_5s_VOL", format(buy_5sec_vol, '.2f'),
           "SELL_5s_VOL", format(sell_5sec_vol, '.2f'))
-
-
     try:
         if (df_all['exec_date'][-1]-df_all['exec_date'][1]).seconds > vol_df_1hour_sec:
-
-            print("a")
             if chumon_umu == 0:
-                print("b")
                 my_position = buy_or_sell(buy_1hour_vol,buy_vol,buy_5sec_vol,sell_1hour_vol,sell_vol,sell_5sec_vol)
-
                 #"BUY"か"SELL"posがあればentry
                 if my_position != "NONE" and my_position != my_last_position:
                     my_position = entry(my_position,my_order_size)
                     my_last_position = my_position
                     print("POSITION: ",my_position)
                     chumon_umu = 1
-
             elif chumon_umu == 1:
-                print("c")
                 close_flag = close_or_dont_close(buy_vol,buy_5sec_vol,sell_vol,sell_5sec_vol,my_position)
                 print(close_flag)
                 if "CLOSE" == close_flag:
@@ -247,16 +218,6 @@ def task(channel, message):
                 print(my_position)
     except Exception as e:
         print(e)
-
-
-
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     main(['lightning_executions_FX_BTC_JPY'])
